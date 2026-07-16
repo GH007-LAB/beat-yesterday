@@ -1,0 +1,770 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Beat Yesterday Coach",
+  "schemaVersion": 1,
+  "description": "Beat Yesterday — โค้ชส่วนตัว (จักรยาน+ยิมในแอปเดียว). 4 แท็บ: (1) โค้ชวันนี้ — เซสชันวันนี้+สถานะ Garmin+พรุ่งนี้เตรียมตัว, (2) ตารางซ้อม — overview 12 สัปดาห์ + ปฏิทินรายวัน 4 สัปดาห์ล่วงหน้า flag KEY/TEST, (3) บันทึก+รายงาน — log ยิม (localStorage) เทียบ beat-last-week + coach report + ปุ่มคัดลอกส่ง Coach, (4) อ้างอิง — power zones/เป้าน้ำหนัก/mobility. ไรด์จาก Strava, ยิมบันทึกในเครื่อง",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Beat Yesterday">
+<meta name="theme-color" content="#0a0e13">
+<title>Beat Yesterday — Coach</title>
+<style>
+  :root{
+    --bg:#0a0e13; --panel:#12181f; --panel2:#1a222c; --line:#232d38;
+    --txt:#eaf0f6; --mut:#8e9bab; --dim:#5f6b78;
+    --today:#4ade80; --brand-d:#22c55e; --tmrw:#fb923c;
+    --z1:#8b98a6; --z2:#3b82f6; --z3:#22c55e; --ss:#eab308; --z4:#f97316; --z5:#ef4444; --gym:#a855f7; --off:#64748b;
+    --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --red:#f43f5e;
+    --radius:18px; --nav-h:66px;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--bg)}
+  body{color:var(--txt);font-family:var(--font);line-height:1.5;max-width:520px;margin:0 auto;min-height:100vh;
+    padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    background:radial-gradient(1100px 460px at 50% -8%,rgba(74,222,128,.07),transparent 60%),var(--bg)}
+  a{color:inherit}
+
+  .appbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;
+    background:rgba(10,14,19,.8);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  .appbar .kick{font-size:9.5px;font-weight:800;letter-spacing:2.5px;color:var(--today)}
+  .appbar .ttl{font-size:20px;font-weight:900;letter-spacing:-.4px;margin-top:2px}
+  .wkchip{flex:none;font-size:12px;font-weight:800;background:linear-gradient(135deg,var(--today),var(--brand-d));color:#05130a;padding:8px 14px;border-radius:999px}
+
+  .phaseline{color:var(--mut);font-size:12px;padding:12px 18px 0}
+  .kpi-scroll{display:flex;gap:9px;overflow-x:auto;padding:12px 18px 2px;scrollbar-width:none}
+  .kpi-scroll::-webkit-scrollbar{display:none}
+  .kpi{flex:0 0 auto;min-width:74px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:11px 15px;text-align:center}
+  .kpi b{display:block;font-size:19px;font-weight:800;letter-spacing:-.5px}
+  .kpi b span{font-size:11px}
+  .kpi small{color:var(--mut);font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;margin-top:3px;display:block}
+
+  main{display:block;padding:4px 16px 8px}
+  .sec-title{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--dim);margin:24px 2px 11px;font-weight:800}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card + .card{margin-top:11px}
+  .hide{display:none}
+
+  .banner{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,rgba(251,146,60,.14),rgba(251,146,60,.02));border:1px solid rgba(251,146,60,.3);border-radius:var(--radius);padding:14px}
+  .banner .ic{font-size:20px}
+  .banner b{color:var(--tmrw)}
+  .banner p{font-size:12.5px;color:#f0dcc4}
+
+  .today-card{border-color:rgba(74,222,128,.5)!important;background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(74,222,128,.01))}
+  .big-sess{font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px;letter-spacing:-.3px;flex-wrap:wrap}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .meta{color:var(--mut);font-size:12.5px;margin-top:6px}
+  .tgt{margin-top:11px;font-size:12.5px;background:var(--panel2);border-radius:12px;padding:10px 12px;border:1px solid var(--line)}
+  .tgt span{color:var(--mut)}
+  .pill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;padding:3px 9px;border-radius:999px;text-transform:uppercase;vertical-align:middle}
+  .pill.key{background:var(--ss);color:#3a2f00}
+  .pill.test{background:var(--red);color:#fff}
+  .pill.today{background:var(--today);color:#05130a}
+  .checklist{list-style:none;margin-top:10px}
+  .checklist li{padding:10px 0 10px 24px;position:relative;font-size:12.5px;border-top:1px solid var(--line)}
+  .checklist li:before{content:"";position:absolute;left:4px;top:16px;width:7px;height:7px;border-radius:50%;background:var(--tmrw)}
+  .checklist li:first-child{border-top:none}
+
+  .wkhead{margin-bottom:12px}
+  .wkhead .wt{font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px}
+  .wkhead .wf{color:var(--mut);font-size:12px;margin-top:4px}
+  .phbadge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;color:#05130a}
+  .days{display:flex;flex-direction:column;gap:9px}
+  .drow{display:flex;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px 13px}
+  .drow.iskey{border-color:rgba(234,179,8,.45)}
+  .drow.istest{border-color:rgba(244,63,94,.5)}
+  .drow.isnow{border-color:var(--today);box-shadow:0 0 0 1px var(--today)}
+  .drow .lbar{width:4px;border-radius:4px;flex:none}
+  .drow .dinfo{flex:1;min-width:0}
+  .drow .dtop{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .drow .dd{font-weight:800;font-size:12.5px}
+  .drow .ddate{color:var(--dim);font-size:11px}
+  .drow .dtitle{font-weight:700;font-size:14px;margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .drow .dsub{color:var(--mut);font-size:11.5px;margin-top:3px}
+  .drow .dprep{color:var(--dim);font-size:11px;margin-top:5px}
+  .actual{margin-top:8px;font-size:11.5px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:10px;padding:8px 10px}
+  .actual.warn{background:rgba(251,146,60,.08);border-color:rgba(251,146,60,.25)}
+  .actual b{font-weight:700}
+
+  .phasebar{display:flex;gap:4px;margin-bottom:12px}
+  .phasebar button{flex:1;height:38px;border-radius:9px;border:2px solid transparent;color:#fff;font-weight:800;font-size:11px;cursor:pointer;font-family:inherit}
+  .phasebar button.sel{border-color:var(--txt)}
+  .ov{width:100%;border-collapse:collapse;font-size:12px}
+  .ov th{text-align:left;color:var(--dim);font-weight:700;padding:7px 6px;border-bottom:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+  .ov td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .ov tr:last-child td{border-bottom:none}
+  .ov .wn{font-weight:800}
+  .ov tr.cur{background:rgba(74,222,128,.08)}
+  .phdot{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:5px}
+  .legend{display:flex;flex-wrap:wrap;gap:11px;justify-content:center;margin-top:12px}
+  .legend span{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--mut)}
+
+  .savechip{font-size:11px;color:var(--good);font-weight:700}
+  .selrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .selrow button{flex:1;min-width:96px;padding:11px 10px;border-radius:13px;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font-family:inherit;transition:.12s}
+  .selrow button.on{background:linear-gradient(135deg,var(--gym),#8b3ff0);border-color:transparent;color:#fff}
+  .exq h4{font-size:15px;font-weight:800;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .exq .scheme{color:var(--mut);font-size:11.5px;margin:2px 0 5px}
+  .exq .prev{color:var(--z2);font-size:11.5px;margin-bottom:8px}
+  .setrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .setrow .sn{color:var(--mut);font-size:11px;width:38px}
+  .setrow input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--txt);padding:12px 8px;font-size:16px;text-align:center;font-family:inherit}
+  .setrow input:focus{outline:none;border-color:var(--today)}
+  .setrow .x{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);cursor:pointer;font-size:18px;flex:none}
+  .setrow .x.done{background:linear-gradient(135deg,var(--today),var(--brand-d));border-color:transparent;color:#05130a}
+  .cue{margin-top:8px;font-size:11.5px;color:var(--mut);background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.15);border-radius:11px;padding:9px 11px}
+  .cue b{color:var(--today)}
+
+  .weekpick{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .weekpick button{width:46px;height:46px;border-radius:13px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:20px;cursor:pointer}
+  .weekpick .wl{flex:1;text-align:center;font-weight:800;font-size:14px}
+  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+  .stat b{display:block;font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .stat small{color:var(--mut);font-size:11px;margin-top:2px;display:block}
+  .coach{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.01));border:1px solid rgba(59,130,246,.28);border-radius:14px;padding:13px 14px;font-size:12.5px;line-height:1.75}
+  .coach b{color:#93c5fd}
+  .prog{list-style:none}
+  .prog li{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:12.5px}
+  .prog li:first-child{border-top:none}
+  .prog .up{color:var(--good);font-weight:800}
+  .prog .same{color:var(--mut)}
+  .btn{width:100%;padding:14px;border-radius:14px;border:none;font-weight:800;font-size:14px;cursor:pointer;color:#05130a;background:linear-gradient(135deg,var(--today),var(--brand-d));margin-top:14px;font-family:inherit}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--mut);font-size:12.5px;padding:12px;margin-top:9px}
+  .out{width:100%;min-height:150px;margin-top:11px;background:var(--bg);border:1px solid var(--today);border-radius:12px;color:#bdf3d0;padding:11px;font-size:12px;font-family:ui-monospace,monospace}
+
+  .zt{width:100%;border-collapse:collapse;font-size:12.5px}
+  .zt th{text-align:left;color:var(--dim);font-weight:700;padding:7px 8px;border-bottom:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+  .zt td{padding:8px;border-bottom:1px solid var(--line)}
+  .zt tr:last-child td{border-bottom:none}
+  .zt .zn{font-weight:700;display:flex;align-items:center;gap:7px}
+  .zt .w{font-variant-numeric:tabular-nums;font-weight:700}
+  .zt tr.hl{background:rgba(59,130,246,.08)}
+  .mob{list-style:none}
+  .mob li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px}
+  .mob li:first-child{border-top:none}
+  .mob span:last-child{color:var(--mut);text-align:right}
+  .foot{margin-top:24px;color:var(--dim);font-size:11px;text-align:center;line-height:1.9}
+
+  .bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;max-width:520px;margin:0 auto;gap:2px;
+    background:rgba(10,14,19,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line);
+    padding:8px 8px calc(env(safe-area-inset-bottom) + 8px)}
+  .navitem{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;
+    color:var(--dim);font-family:inherit;font-size:10.5px;font-weight:700;padding:2px;cursor:pointer;transition:.15s}
+  .navitem .icw{width:56px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:999px;transition:.15s}
+  .navitem svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .navitem.active{color:var(--today)}
+  .navitem.active .icw{background:rgba(74,222,128,.16)}
+</style>
+</head>
+<body>
+
+  <header class="appbar">
+    <div>
+      <div class="kick">BEAT YESTERDAY</div>
+      <div class="ttl">โค้ชส่วนตัว</div>
+    </div>
+    <div class="wkchip" id="wkChip">W1</div>
+  </header>
+  <div class="phaseline" id="phaseline">—</div>
+  <div class="kpi-scroll">
+    <div class="kpi"><b>266</b><small>FTP (Garmin)</small></div>
+    <div class="kpi"><b>3.59</b><small>W/kg</small></div>
+    <div class="kpi"><b>74</b><small>kg</small></div>
+    <div class="kpi"><b id="kpiWeek">1/12</b><small>สัปดาห์</small></div>
+    <div class="kpi"><b id="kpiDone">0/6</b><small>ซ้อมสัปดาห์นี้</small></div>
+  </div>
+
+  <main>
+  <!-- ============ TODAY ============ -->
+  <section id="tab-today">
+    <div class="banner" style="margin-top:16px">
+      <div class="ic">🔄</div>
+      <div><p><b>Sync จาก Strava (15 ก.ค.):</b> สัปดาห์ที่แล้วโหลดสูง — ปั่น <b>189 กม.</b> (3 ไรด์) + ยิม 1 · สัปดาห์นี้: ปั่น 1 + ยิม 1 · Z2 หลายไรด์ HR แตะเพดาน → <b>คุม HR ให้ต่ำกว่า 143</b> (โซน 2) ฟอร์มจะเด้งเป็น Productive · <b style="color:#e9d8b8">ใส่นาฬิกานอนเพื่อปลดล็อก HRV/Readiness</b></p></div>
+    </div>
+    <div class="sec-title">วันนี้ต้องทำอะไร</div>
+    <div id="todayBox"></div>
+    <div id="todayAction"></div>
+    <div class="sec-title">🔄 ปรับแผนอัตโนมัติ · ผล &amp; สิ่งที่ต้องปรับ</div>
+    <div id="adaptBox"></div>
+    <div class="sec-title">พรุ่งนี้เตรียมตัว</div>
+    <div id="tmrwBox"></div>
+  </section>
+
+  <!-- ============ PLAN ============ -->
+  <section id="tab-plan" class="hide">
+    <div class="sec-title">ภาพรวม 12 สัปดาห์ · แตะเพื่อดูรายละเอียด</div>
+    <div class="card">
+      <div class="phasebar" id="phasebar"></div>
+      <table class="ov"><thead><tr><th>สัปดาห์</th><th>เฟส</th><th>โฟกัส</th><th>ยิม</th></tr></thead><tbody id="ovBody"></tbody></table>
+      <div class="legend">
+        <span><span class="phdot" style="background:var(--z2)"></span>A Reset</span>
+        <span><span class="phdot" style="background:var(--ss)"></span>B FTP</span>
+        <span><span class="phdot" style="background:var(--z5)"></span>C Sharpen</span>
+        <span><span class="phdot" style="background:var(--off)"></span>D Deload</span>
+        <span>★ = วันเทสต์</span>
+      </div>
+    </div>
+    <div class="sec-title">ตารางรายวัน · 4 สัปดาห์ข้างหน้า</div>
+    <div id="detailWeeks"></div>
+  </section>
+
+  <!-- ============ LOG + REPORT ============ -->
+  <section id="tab-log" class="hide">
+    <div class="sec-title">บันทึกยิมวันนี้ <span id="logSave" class="savechip"></span></div>
+    <div class="card">
+      <div class="selrow" id="sessSel"></div>
+      <div id="logBody"></div>
+    </div>
+
+    <div class="sec-title">รายงานผลการซ้อม — โค้ชสรุป</div>
+    <div class="card">
+      <div class="weekpick">
+        <button id="wkPrev">‹</button>
+        <div class="wl" id="wkLabel">สัปดาห์ 1</div>
+        <button id="wkNext">›</button>
+      </div>
+      <div class="rgrid" id="statGrid"></div>
+      <div class="coach" id="coachBox" style="margin-top:12px"></div>
+      <div class="sec-title" style="margin:18px 2px 8px">ความก้าวหน้าความแข็งแรง · beat last week</div>
+      <ul class="prog" id="progList"></ul>
+      <button class="btn" id="copyBtn">📋 คัดลอกรายงาน → วางส่งให้ Coach ลง Weekly Log</button>
+      <button class="btn ghost" id="showBtn">ดู/แก้ข้อความรายงาน</button>
+      <textarea class="out hide" id="outBox" readonly></textarea>
+      <div style="color:var(--dim);font-size:11px;margin-top:10px">ข้อมูลยิมเก็บในเครื่องนี้ (ออฟไลน์ได้) · กดคัดลอกแล้ววางในแชท Coach ในแอป Claude เพื่อให้ลง Excel Weekly Log อัตโนมัติ · ข้อมูลไรด์ดึงจาก Strava โดย Coach</div>
+    </div>
+  </section>
+
+  <!-- ============ REFERENCE ============ -->
+  <section id="tab-ref" class="hide">
+    <div class="sec-title">⚡ Power Zones · FTP 266w (Garmin/Strava)</div>
+    <div class="card">
+      <table class="zt"><thead><tr><th>Zone</th><th>Watts</th><th>HR (bpm)</th></tr></thead><tbody>
+        <tr><td class="zn"><span class="dot" style="background:var(--z1)"></span>Z1 Recovery</td><td class="w">133–160</td><td>&lt;127</td></tr>
+        <tr class="hl"><td class="zn"><span class="dot" style="background:var(--z2)"></span>Z2 Endurance</td><td class="w">173–192</td><td>128–143</td></tr>
+        <tr><td class="zn"><span class="dot" style="background:var(--z3)"></span>Z3 Tempo</td><td class="w">202–231</td><td>144–150</td></tr>
+        <tr><td class="zn"><span class="dot" style="background:var(--ss)"></span>Sweet Spot</td><td class="w">234–247</td><td>148–155</td></tr>
+        <tr><td class="zn"><span class="dot" style="background:var(--z4)"></span>Z4 Threshold</td><td class="w">253–279</td><td>151–164</td></tr>
+        <tr><td class="zn"><span class="dot" style="background:var(--z5)"></span>Z5 VO₂max</td><td class="w">282–319</td><td>165–174</td></tr>
+        <tr><td class="zn"><span class="dot" style="background:var(--z5)"></span>Z6 Anaerobic</td><td class="w">322–399</td><td>175+</td></tr>
+      </tbody></table>
+      <p style="color:var(--dim);font-size:11px;margin-top:10px"><b style="color:var(--tmrw)">⚠️ FTP 266 = ค่าที่ตั้งใน Garmin</b> แต่ power จริงช่วงนี้ (20 นาที best ~196w · 1 ชม. 164w) บ่งชี้ FTP จริงราว <b>~185w</b> — โซนด้านบนจึงดู "สูงเกินตัว". ระหว่างนี้ <b>ยึด watt เป้าในแผนรายวัน</b> (ไม่ใช่โซนดิบ) จนกว่าจะยืนยันด้วย FTP test สัปดาห์ 6/8/12 · HR zones ตาม Strava จริง</p>
+    </div>
+
+    <div class="sec-title">🏋️ เป้าน้ำหนักยิม ตลอด 12 สัปดาห์ (กก.)</div>
+    <div class="card">
+      <table class="ov"><thead><tr><th>ท่า</th><th>สัปดาห์ 1-2</th><th>สัปดาห์ 3</th><th>สัปดาห์ 5-7</th><th>สัปดาห์ 9-11</th></tr></thead><tbody id="wtBody"></tbody></table>
+      <p style="color:var(--dim);font-size:11px;margin-top:10px">กติกา: ครบ reps ทุกเซ็ต 2 ครั้งติด → +2.5 กก. · <b style="color:var(--warn)">เลี่ยง Back Squat ถ้าคอ/บ่าไม่ไหว → ใช้ Goblet/Hack Squat แทน</b> · เดือนแรกเน้นเรียนฟอร์ม RPE 6-7</p>
+    </div>
+
+    <div class="sec-title">🧘 Daily Mobility · 10 นาที ห้ามขาด</div>
+    <div class="card"><ul class="mob" id="mobList"></ul></div>
+
+    <div class="sec-title">📱 วิธีใช้บนมือถือ</div>
+    <div class="card" style="font-size:12.5px;line-height:1.8;color:var(--mut)">
+      <b style="color:var(--txt)">เพิ่มลงหน้าจอโฮม (ใช้เหมือนแอป):</b><br>
+      • <b style="color:var(--txt)">iPhone (Safari):</b> เปิดไฟล์นี้ → ปุ่มแชร์ ↑ → “เพิ่มลงในหน้าจอโฮม”<br>
+      • <b style="color:var(--txt)">Android (Chrome):</b> เมนู ⋮ → “เพิ่มลงในหน้าจอหลัก”<br>
+      เปิดแล้วเต็มจอ ใช้ได้แม้ไม่มีเน็ต ข้อมูลยิมเก็บในเครื่อง<br><br>
+      <b style="color:var(--txt)">อยากใช้ทุกวัน:</b> บอกผมให้ตั้ง “ส่งลิงก์ทุกเช้า” ก็ได้ หรือกดปุ่มคัดลอกรายงานส่งให้ Coach ในแชทเพื่ออัปเดต Weekly Log
+    </div>
+  </section>
+
+  <div class="foot">
+    ไรด์: Strava (Garmin sync) · Recovery: Garmin Connect · ยิม: บันทึกในเครื่อง · โค้ช Beat Yesterday<br>Consistency &gt; Heroic workouts
+  </div>
+  </main>
+
+  <nav class="bottomnav">
+    <button class="navitem active" data-tab="today"><span class="icw"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span>โค้ช</button>
+    <button class="navitem" data-tab="plan"><span class="icw"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>ตาราง</button>
+    <button class="navitem" data-tab="log"><span class="icw"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg></span>บันทึก</button>
+    <button class="navitem" data-tab="ref"><span class="icw"><svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 17v-5M12 17V8M16 17v-8"/></svg></span>อ้างอิง</button>
+  </nav>
+
+<script>
+/* ---------------- DATA ---------------- */
+var FTP=266, START=new Date(2026,6,6); // Mon 6 Jul 2026 · FTP 266 (Garmin/Strava)
+var THAI_DOW=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
+var TH_MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+var PH={A:{n:'Phase A — Reset & Aerobic Rebuild',c:'#3b82f6'},B:{n:'Phase B — Rebuild FTP',c:'#eab308'},C:{n:'Phase C — Sharpen',c:'#ef4444'},D:{n:'Deload',c:'#64748b'}};
+var WEEKS12=[
+ {w:1,ph:'A',focus:'Aerobic re-entry (~7 ชม.)',gym:'ยิม 2 (จ.+พ.)'},
+ {w:2,ph:'A',focus:'Aerobic build + tempo แรก (~8 ชม.)',gym:'ยิม 2 (จ.+พ.)'},
+ {w:3,ph:'A',focus:'Torque + Sweet Spot แรก (~8.5 ชม.)',gym:'ยิม 2 (จ.+พ.)'},
+ {w:4,ph:'D',focus:'DELOAD — HRV ต้องเด้งกลับ (~5 ชม.)',gym:'ยิมเบา optional 1'},
+ {w:5,ph:'B',focus:'Sweet Spot foundation (~8.5 ชม.)',gym:'ยิม 1 (พ. Full Body)'},
+ {w:6,ph:'B',focus:'SS ยาวขึ้น + ★FTP TEST อาทิตย์',gym:'ยิม 1 (พ.) ห้ามใกล้เทสต์'},
+ {w:7,ph:'B',focus:'Threshold + Over-Under (~9 ชม.)',gym:'ยิม 1 (พ. Full Body)'},
+ {w:8,ph:'D',focus:'DELOAD + ★FTP TEST เสาร์',gym:'งดยิม — mobility'},
+ {w:9,ph:'C',focus:'VO2 block (~8.5 ชม.)',gym:'ยิม 1 (พ. Maintenance)'},
+ {w:10,ph:'C',focus:'VO2 + Anaerobic intro (~9 ชม.)',gym:'ยิม 1 (พ. Maintenance)'},
+ {w:11,ph:'C',focus:'Anaerobic repeatability (~8.5 ชม.)',gym:'ยิม 1 (พ. Maintenance)'},
+ {w:12,ph:'D',focus:'DELOAD + ★FTP + Power Profile เสาร์',gym:'งดยิม — mobility'}
+];
+var PHCOLOR={A:'#3b82f6',B:'#eab308',C:'#ef4444',D:'#64748b'};
+
+/* gym session library */
+var GYM={
+ upper:{label:'Upper',dur:'45 นาที · Upper + คอ/บ่า',ex:[
+   {id:'bench',n:'Bench Press',s:'4×10-12',cue:'เหลือแรง 3-4 reps · สะบักล็อก'},
+   {id:'row',n:'Barbell Row',s:'4×10-12',cue:'หลังตรง ดึงศอกชิดลำตัว'},
+   {id:'lat',n:'Lat Pulldown',s:'4×10-12',cue:'ดึงลงอก อย่าเหวี่ยง'},
+   {id:'ohp',n:'Overhead Press',s:'3×10-12',cue:'core เกร็ง ไม่แอ่นหลัง'},
+   {id:'face',n:'Face Pull',s:'3×15',cue:'prehab บังคับ — รู้สึกที่สะบัก'},
+   {id:'curlpd',n:'Curl + Pushdown',s:'2×12',cue:'เบา จบท้าย'},
+   {id:'plank',n:'Plank',s:'3×40 วิ',cue:'ตัวเป็นเส้นตรง'}
+ ]},
+ leg:{label:'Leg (มือใหม่)',dur:'50 นาที · Lower + core',ex:[
+   {id:'jump',n:'Jump Squat (ตัวเปล่า)',s:'4×3-5',cue:'ระเบิดเต็มแรง ลงนุ่ม พัก 2 นาที · เข่าไม่ดี → Step-up'},
+   {id:'goblet',n:'Goblet Squat',s:'3×8-10 · 10-14kg',cue:'ดันสะโพกหลัง เข่าตามปลายเท้า'},
+   {id:'rdl',n:'Dumbbell RDL',s:'3-4×8-10',cue:'พับสะโพก หลังตรง ดัมเบลชิดขา'},
+   {id:'bss',n:'Bulgarian Split Squat',s:'3×8/ข้าง',cue:'เริ่มตัวเปล่าจนทรงตัวได้'},
+   {id:'calf',n:'Standing Calf Raise',s:'3×12-15',cue:'เต็มระยะ บีบค้าง 1 วิ'},
+   {id:'pallof',n:'Pallof Press',s:'3×10/ข้าง',cue:'ต้านไม่ให้ตัวบิด'},
+   {id:'plank',n:'Plank',s:'3×30-40 วิ',cue:'สะโพกตก = จบเซ็ต'},
+   {id:'face',n:'Face Pull + คอ/บ่า',s:'3×15',cue:'ยาแก้ปวดคอบ่าระยะยาว'}
+ ]},
+ full:{label:'Full Body',dur:'55 นาที · ทั้งตัว',ex:[
+   {id:'squat',n:'Squat (Goblet/Back)',s:'3×8-10',cue:'เลี่ยง back squat ถ้าคอ/บ่าไม่ไหว'},
+   {id:'bench',n:'Bench Press',s:'3×8-10',cue:'เหลือแรง 3-4'},
+   {id:'rdl',n:'Romanian Deadlift',s:'3×8',cue:'พับสะโพก'},
+   {id:'row',n:'Barbell Row',s:'3×8-10',cue:'หลังนิ่ง'},
+   {id:'face',n:'Face Pull',s:'2×15',cue:'prehab'},
+   {id:'neck',n:'Neck Isometric',s:'3×20วิ/ทิศ',cue:'กัน office syndrome + ท่า aero'}
+ ]}
+};
+
+/* weight-target table */
+var WT=[
+ ['Bench Press','25–27.5','32.5–35','37.5–42.5','+2.5 เมื่อครบ'],
+ ['Barbell Row','20','27.5','30–35','+2.5'],
+ ['Squat (Goblet/Back)','ตัวเปล่า–30','40','45–52.5','+2.5'],
+ ['Romanian Deadlift','30','37.5–40','42.5–47.5','log ล่าสุด'],
+ ['Overhead Press','15–17.5','20','22.5–25','—'],
+ ['Bulgarian Split','ตัวเปล่า','ดัมเบล 2×5','2×7.5','—']
+];
+var MOB=[['Chin tucks','2×10 — แก้คอยื่น + ท่า aero'],['Cat-cow','2×10 — T-spine'],['Thread the needle','5/ข้าง ค้าง 30 วิ'],['Doorway pec stretch','30 วิ/ข้าง — แก้ไหล่ห่อ'],['Hip flexor lunge','45 วิ/ข้าง'],['90/90 hip rotation','8/ข้าง'],['Foam roll quad/IT/glute','60 วิ/จุด']];
+
+/* ---- daily detail weeks 1-4 ---- */
+function C(t){return {bike:'#3b82f6',tempo:'#22c55e',ss:'#eab308',vo2:'#f97316',gym:'#a855f7',off:'#64748b',z1:'#7c8794'}[t]||'#3b82f6';}
+var DETAIL={
+1:[
+ {t:'gym',title:'ยิม 1 — Upper Body',sub:'45 นาที · strength บน + แก้ office syndrome',prep:'โหลด 50–60% · เรียนฟอร์ม RPE 6-7'},
+ {t:'bike',title:'Z2 Endurance',sub:'75 นาที · steady Z2',prep:'เป้า 140–155w · HR <145',actual:{s:'70.9 กม · 1:43 · 141w · HR 141/178',v:'✓ ตรงเป้า Z2 (แต่ HR max 178 = พีคสูง)',ok:1}},
+ {t:'gym',title:'ยิม 2 — Lower Body',sub:'50 นาที · strength ล่าง + core',prep:'โหลด 50–60% · Bulgarian เริ่มตัวเปล่า'},
+ {t:'bike',title:'Z2 + spin-ups',sub:'75 นาที · 6×10s @110 rpm',prep:'เป้า 140–155w · HR <145',actual:{s:'70.8 กม · 1:44 · 160w · HR 145/166',v:'✓ power เข้า Z2 · HR แตะเพดาน + ยาว +28′ คุมลงอีกนิด',ok:0}},
+ {t:'off',title:'OFF / Recovery',sub:'พัก หรือเดิน 20 นาที',prep:'mobility คอ/บ่า · ฟังร่างกาย',actual:{s:'🏋️ ยิม 1:14 · 436 cal (นอกแผน)',v:'โบนัส—ไปยิมวันพัก · คุมไม่ให้ล้าลงขาเยอะ',ok:1}},
+ {t:'bike',title:'Long Z2',sub:'2.5 ชม · steady ยาว',key:1,prep:'เป้า 135–157w · HR <150 · fuel 50–60g carb/ชม',actual:{s:'47 กม · 1:16 · 152w · HR 140/167',v:'⚠️ สั้นกว่าเป้า (2.5 ชม.→1:16) — KEY ไม่ครบ endurance ขาด',ok:0}},
+ {t:'z1',title:'Z2 Recovery',sub:'75 นาที · easy + mobility 10′',prep:'เป้า 108–129w · HR <140 · คุมวัตต์ต่ำ'}
+],
+2:[
+ {t:'gym',title:'ยิม 1 — Upper Body',sub:'45 นาที',prep:'น้ำหนักคงเดิม เก็บฟอร์ม',actual:{s:'🚴 ปั่นแทนยิม 35 กม · 1:09 · 154w · HR 132/161',v:'สลับยิม→ปั่น (มี sprint effort เยอะ) · ยิมบนยังค้าง',ok:0}},
+ {t:'bike',title:'Z2 Endurance',sub:'80 นาที · steady',prep:'เป้า 140–155w · HR <145'},
+ {t:'gym',title:'ยิม 2 — Lower Body',sub:'50 นาที',prep:'โหลด 55–60%',actual:{s:'🏋️ ยิม 1:49 · 545 cal',v:'✓ ตามแผน Lower body วันนี้',ok:1}},
+ {t:'tempo',title:'Z2 + Tempo แรก',sub:'80 นาที · 2×8′ Tempo',key:1,prep:'ช่วง tempo 174–200w · ที่เหลือ Z2'},
+ {t:'off',title:'OFF / Recovery',sub:'พัก หรือเดิน 20 นาที',prep:'mobility + นอนลึก'},
+ {t:'bike',title:'Long Z2',sub:'2.75 ชม · ยาวขึ้น',key:1,prep:'HR <150 · fuel 50–60g/ชม · ดื่มน้ำ'},
+ {t:'z1',title:'Z2 Recovery',sub:'75 นาที · easy',prep:'108–129w · คุมต่ำ'}
+],
+3:[
+ {t:'gym',title:'ยิม 1 — Upper Body',sub:'45 นาที',prep:'ขยับน้ำหนักขึ้นถ้าครบ reps 2 ครั้งติด'},
+ {t:'ss',title:'Torque intervals',sub:'75 นาที · รอบขาต่ำ 50–60 rpm เกียร์หนัก',key:1,prep:'Z3 · สร้างแรงบิด · อย่าฝืนเข่า'},
+ {t:'gym',title:'ยิม 2 — Lower Body',sub:'50 นาที',prep:'โหลด 60%'},
+ {t:'ss',title:'Sweet Spot แรก',sub:'80 นาที · 2×10′ @202–214w',key:1,prep:'SS 84–88% · พักระหว่างเซ็ต 5′'},
+ {t:'off',title:'OFF / Recovery',sub:'พัก',prep:'mobility'},
+ {t:'bike',title:'Long Z2 + SS',sub:'3 ชม · จบด้วย SS สั้น',key:1,prep:'HR <150 · fuel เต็มที่'},
+ {t:'z1',title:'Z2 Recovery',sub:'75 นาที · easy',prep:'ปิดสัปดาห์เบา'}
+],
+4:[
+ {t:'off',title:'OFF / Mobility',sub:'พักเต็มวัน',prep:'DELOAD เริ่ม — เป้าคือ HRV เด้งกลับ'},
+ {t:'z1',title:'Z2 easy',sub:'60 นาที · เบา',prep:'ไม่มี interval · คุมต่ำ'},
+ {t:'gym',title:'ยิมเบา (optional)',sub:'โหลด 50% · หรือข้าม',prep:'เลือดไหลเวียน ไม่ใช่ stimulus'},
+ {t:'z1',title:'Z1 Recovery + openers',sub:'45 นาที · 3×30s เร่งสั้น',prep:'แค่ปลุกขา'},
+ {t:'off',title:'OFF',sub:'พัก',prep:'นอนให้เต็ม'},
+ {t:'bike',title:'Z2 moderate',sub:'90 นาที · รู้สึกสดขึ้น',prep:'ถ้าขาเบา = deload ได้ผล'},
+ {t:'off',title:'OFF / Mobility',sub:'พัก',prep:'พร้อมเข้า Phase B สัปดาห์หน้า'}
+]
+};
+
+/* ---------------- STORAGE ---------------- */
+var mem={};
+function sGet(k,fb){try{var v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch(e){return (k in mem)?mem[k]:fb;}}
+function sSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){mem[k]=v;}}
+
+/* ---------------- DATE HELPERS ---------------- */
+function stripT(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function fmt(d){return d.getDate()+' '+TH_MON[d.getMonth()];}
+function dayIdx(d){return Math.round((stripT(d)-START)/86400000);}
+function nowIdx(){return dayIdx(new Date());}
+function wkDow(idx){return {wk:Math.floor(idx/7)+1,dow:((idx%7)+7)%7};}
+function dkOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dateKey(){return dkOf(new Date());}
+
+/* ---------------- RENDER: overview ---------------- */
+var selPhaseWeek=null;
+function renderOverview(){
+  var pb=document.getElementById('phasebar');pb.innerHTML='';
+  var cur=wkDow(nowIdx()).wk;
+  WEEKS12.forEach(function(x){
+    var b=document.createElement('button');
+    b.textContent=x.w+(x.ph==='D'?'↓':'');
+    b.style.background=PHCOLOR[x.ph];b.style.opacity=(x.ph==='D')?.6:( (selPhaseWeek||cur)===x.w?1:.72);
+    if((selPhaseWeek||cur)===x.w)b.className='sel';
+    b.onclick=function(){selPhaseWeek=x.w;renderOverview();};
+    pb.appendChild(b);
+  });
+  var body=document.getElementById('ovBody');body.innerHTML='';
+  WEEKS12.forEach(function(x){
+    var tr=document.createElement('tr');if(x.w===cur)tr.className='cur';
+    tr.innerHTML='<td class="wn">'+x.w+'</td><td><span class="phdot" style="background:'+PHCOLOR[x.ph]+'"></span>'+x.ph+'</td><td>'+x.focus+'</td><td style="color:var(--mut)">'+x.gym+'</td>';
+    body.appendChild(tr);
+  });
+}
+
+/* ---------------- RENDER: detail weeks ---------------- */
+function dayCardHTML(day,idx,globalIdx){
+  var col=C(day.t);
+  var cls='drow';if(day.key)cls+=' iskey';if(day.test)cls+=' istest';if(globalIdx===nowIdx())cls+=' isnow';
+  var date=addDays(START,globalIdx);
+  var pills='';
+  if(globalIdx===nowIdx())pills+='<span class="pill today">วันนี้</span>';
+  if(day.key)pills+=' <span class="pill key">KEY</span>';
+  if(day.test)pills+=' <span class="pill test">★ TEST</span>';
+  var actual='';
+  if(day.actual){actual='<div class="actual'+(day.actual.ok?'':' warn')+'"><b>ผลจริง:</b> '+day.actual.s+' · '+day.actual.v+'</div>';}
+  return '<div class="'+cls+'"><div class="lbar" style="background:'+col+'"></div><div class="dinfo">'+
+    '<div class="dtop"><span class="dd">'+THAI_DOW[idx]+'</span><span class="ddate">'+fmt(date)+'</span></div>'+
+    '<div class="dtitle">'+day.title+' '+pills+'</div>'+
+    '<div class="dsub">'+day.sub+'</div>'+
+    '<div class="dprep">เตรียม: '+day.prep+'</div>'+actual+'</div></div>';
+}
+function renderDetail(){
+  var host=document.getElementById('detailWeeks');host.innerHTML='';
+  for(var wk=1;wk<=4;wk++){
+    var wdata=WEEKS12[wk-1];
+    var wrap=document.createElement('div');wrap.className='card';wrap.style.marginBottom='11px';
+    var d0=addDays(START,(wk-1)*7),d6=addDays(START,(wk-1)*7+6);
+    var head='<div class="wkhead"><div class="wt">สัปดาห์ '+wk+' <span class="phbadge" style="background:'+PHCOLOR[wdata.ph]+'">'+wdata.ph+'</span></div>'+
+      '<div class="wf">'+fmt(d0)+' – '+fmt(d6)+' · '+wdata.focus+'</div></div>';
+    var days='<div class="days">';
+    DETAIL[wk].forEach(function(day,i){days+=dayCardHTML(day,i,(wk-1)*7+i);});
+    days+='</div>';
+    wrap.innerHTML=head+days;
+    host.appendChild(wrap);
+  }
+}
+
+/* ---------------- RENDER: today ---------------- */
+function sessionNameFor(globalIdx){
+  var wd=wkDow(globalIdx);if(wd.wk<1||wd.wk>4)return null;
+  return DETAIL[wd.wk][wd.dow];
+}
+function renderToday(){
+  var idx=nowIdx();var d=sessionNameFor(idx);var box=document.getElementById('todayBox');
+  var cur=wkDow(idx);
+  if(!d){box.innerHTML='<div class="card">ช่วงนี้อยู่นอกหน้าต่างแผน 4 สัปดาห์ (สัปดาห์ '+cur.wk+') — ไปแท็บ “ตาราง” เพื่อดูภาพรวม 12 สัปดาห์</div>';}
+  else{
+    var col=C(d.t);
+    var actual=d.actual?'<div class="actual'+(d.actual.ok?'':' warn')+'"><b>ผลจริง:</b> '+d.actual.s+' · '+d.actual.v+'</div>':'';
+    var kp=(d.key?'<span class="pill key">KEY</span> ':'')+(d.test?'<span class="pill test">★ TEST</span>':'');
+    box.innerHTML='<div class="card today-card"><div class="big-sess"><span class="dot" style="width:12px;height:12px;background:'+col+'"></span>'+d.title+' '+kp+'</div>'+
+      '<div class="meta">'+fmt(addDays(START,idx))+' · สัปดาห์ '+cur.wk+'/12 · '+d.sub+'</div>'+
+      '<div class="tgt"><span>เตรียม/เป้า:</span> '+d.prep+'</div>'+actual+'</div>';
+  }
+  renderTodayAction(idx,d);renderAdapt();
+  // tomorrow
+  var t=sessionNameFor(idx+1);var tb=document.getElementById('tmrwBox');
+  if(!t){tb.innerHTML='<div class="card">พรุ่งนี้อยู่นอกแผน 4 สัปดาห์</div>';}
+  else{
+    var col2=C(t.t);
+    var prepItems=[];
+    if(t.t==='off'){prepItems=['พักให้เต็มที่ · เดินเบา 20 นาทีถ้าอยากขยับ','Mobility คอ/บ่า/ไหล่ 10–15 นาที','ใส่นาฬิกานอน → เก็บ HRV/Readiness','Magnesium มื้อเย็น · ดื่มน้ำให้พอ'];}
+    else if(t.key||t.t==='ss'||t.t==='tempo'){prepItems=['นอนให้ครบ 7+ ชม. คืนนี้','เตรียม fuel 50–60g carb/ชม.','ชาร์จ Garmin + ล้างขวดน้ำ','วอร์มให้ครบก่อนเข้าช่วงหนัก'];}
+    else if(t.t==='gym'){prepItems=['เตรียมชุด + จองเวลายิม','โปรตีนหลังเล่น 30–40g ใน 1 ชม.','เริ่มเบา เก็บฟอร์มก่อนเพิ่มน้ำหนัก'];}
+    else{prepItems=['คุมวัตต์/HR ให้อยู่โซนเป้า','ดื่มน้ำ + snack เบา','mobility 10 นาทีหลังปั่น'];}
+    var li=prepItems.map(function(p){return '<li>'+p+'</li>';}).join('');
+    tb.innerHTML='<div class="card" style="border-color:rgba(251,146,60,.45)"><div class="big-sess" style="font-size:17px"><span class="dot" style="background:'+col2+'"></span>พรุ่งนี้ — '+t.title+'</div>'+
+      '<div class="meta">'+fmt(addDays(START,idx+1))+' · '+t.sub+'</div><ul class="checklist">'+li+'</ul></div>';
+  }
+  document.getElementById('phaseline').innerHTML=PH[WEEKS12[Math.min(cur.wk,12)-1].ph].n+' · <b style="color:var(--txt)">สัปดาห์ '+cur.wk+' / 12</b> · เริ่ม 6 ก.ค. 2026';
+  document.getElementById('kpiWeek').textContent=cur.wk+'/12';
+  var wc=document.getElementById('wkChip');if(wc)wc.textContent='W'+cur.wk;
+}
+
+/* ---------------- ACTUAL / ADAPTIVE ---------------- */
+function actualKey(dk){return 'by:actual:'+dk;}
+function getActual(dk){return sGet(actualKey(dk),null);}
+function setActual(dk,obj){sSet(actualKey(dk),obj);}
+function labelDid(x){return {plan:'ทำตามแผน',gym:'ไปยิม',ride:'ปั่น',rest:'พักตามแผน',skip:'ข้าม'}[x]||x;}
+function renderTodayAction(idx,d){
+  var host=document.getElementById('todayAction');if(!host)return;
+  if(idx<0||idx>27||!d){host.innerHTML='';return;}
+  var dk=dkOf(addDays(START,idx));var cur=getActual(dk);
+  var opts;
+  if(d.t==='off') opts=[['gym','🏋️ ไปยิม'],['ride','🚴 ปั่นเบา'],['rest','😴 พักตามแผน']];
+  else if(d.t==='gym') opts=[['plan','✓ ทำตามแผน'],['ride','🚴 ปั่นแทน'],['rest','😴 พักแทน']];
+  else opts=[['plan','✓ ปั่นตามแผน'],['gym','🏋️ ไปยิมแทน'],['rest','😴 พักแทน']];
+  var btns=opts.map(function(o){var on=cur&&cur.did===o[0];return '<button data-did="'+o[0]+'"'+(on?' class="on"':'')+'>'+o[1]+'</button>';}).join('');
+  var note=cur?'<div style="font-size:12px;color:var(--good);margin-top:6px">บันทึกแล้ว: '+labelDid(cur.did)+(cur.did==='gym'?' — ไปแท็บ “บันทึก” กรอกเซ็ต':'')+'</div>':'<div style="font-size:11.5px;color:var(--dim);margin-top:6px">แตะเพื่อบันทึกว่าจริงๆ วันนี้ทำอะไร — โค้ชจะปรับแผนวันอื่นให้</div>';
+  host.innerHTML='<div class="card" style="margin-top:11px"><div style="font-weight:800;font-size:13px;margin-bottom:10px">✍️ วันนี้ทำจริงอะไร</div><div class="selrow" style="margin-bottom:0">'+btns+'</div>'+note+'</div>';
+  host.querySelectorAll('button[data-did]').forEach(function(b){b.onclick=function(){
+    var did=b.dataset.did;setActual(dk,{did:did});
+    if(did==='gym'&&idx===nowIdx()){show('log');}
+    else{renderTodayAction(idx,d);renderAdapt();}
+  };});
+}
+function intens(d){if(!d)return 0;return ({off:0,z1:1,bike:2,gym:2,tempo:3,ss:3,vo2:4})[d.t]||(d.key?3:2);}
+function hasGymLogOn(dk){return ['upper','leg','full'].some(function(s){var v=sGet(logKey(s,dk),null);return v&&Object.keys(v).some(function(k){return v[k].some(function(x){return x.done||x.r;});});});}
+function actualOf(wk,dow){
+  var dk=dkOf(addDays(START,(wk-1)*7+dow));var act=getActual(dk);var d=DETAIL[wk]?DETAIL[wk][dow]:null;
+  if(hasGymLogOn(dk))return 'gym';
+  if(act)return act.did;
+  if(d&&d.actual)return 'plan';
+  return null;
+}
+function adaptiveAdvice(wk){
+  var plan=DETAIL[wk];if(!plan)return [];
+  var out=[];var today=nowIdx();
+  for(var i=0;i<7;i++){
+    var gi=(wk-1)*7+i;var d=plan[i];var a=actualOf(wk,i);
+    if(d.t==='off'&&(a==='gym'||a==='ride')){
+      var nx=plan[i+1];
+      if(nx&&(nx.key||nx.test)&&gi+1>=today){
+        out.push({ic:'⚖️',t:'ใช้วันพัก ('+THAI_DOW[i]+') ไปเทรนแล้ว → ตัวถัดไปเป็น KEY: <b>'+nx.title+'</b> ลดปริมาณ ~20% (เช่น Long Z2 เหลือ 2 ชม.) หรือคุมปลายให้เบา · ถ้าขาล้า—สลับพักไป '+THAI_DOW[(i+1)%7]+' แล้วเลื่อน '+nx.title+' ออก 1 วัน'});
+      }else{
+        out.push({ic:'✅',t:'เทรนวันพัก ('+THAI_DOW[i]+') แล้ว รอบข้างเบา—โอเค แค่คุมไม่ให้ล้าลงขาเยอะ'});
+      }
+    }
+    if(gi<today&&d.t!=='off'&&!a){
+      if(d.key||d.test)out.push({ic:'🔴',t:'พลาด KEY: '+THAI_DOW[i]+' '+d.title+' → ถ้ามีช่วงว่าง ย้ายไปทำแบบย่อในวันพักถัดไป; ถ้าไม่ได้ ข้ามได้—อย่าอัดชดเชยจนกระทบ key ตัวถัดไป'});
+      else if(d.t==='gym')out.push({ic:'🟠',t:'พลาดยิม: '+THAI_DOW[i]+' '+d.title+' → ยิมคือ prehab คอ/บ่า แทรกวันว่างถ้าได้ หรืออย่างน้อยทำ mobility 10 นาทีชดเชย'});
+      else out.push({ic:'🟢',t:'ข้าม '+THAI_DOW[i]+' '+d.title+' (ปั่นเบา) ได้—ไม่ต้องชดเชย ไม่กระทบฟอร์ม'});
+    }
+  }
+  var doneLoad=0,planLoad=0;
+  for(var j=0;j<7;j++){var d2=plan[j];planLoad+=intens(d2);var a2=actualOf(wk,j);if(a2==='gym'||a2==='ride')doneLoad+=2;else if(a2==='plan')doneLoad+=intens(d2);}
+  if(doneLoad>planLoad*1.15)out.push({ic:'🛌',t:'โหลดสัปดาห์นี้เกินแผน + Garmin ขึ้น High Load → ใส่วันพักจริงเพิ่ม 1 วัน แล้วเลื่อน key ที่เหลือออก ปล่อยให้ HRV เด้งกลับก่อน'});
+  if(!out.length)out.push({ic:'👍',t:'ยังอยู่ในแผนดี—รักษาจังหวะ พักให้พอ เก็บ key session ตามตาราง'});
+  return out.slice(0,4);
+}
+function renderAdapt(){
+  var host=document.getElementById('adaptBox');if(!host)return;
+  var wk=wkDow(nowIdx()).wk;
+  if(wk<1||wk>4){host.innerHTML='<div class="card" style="color:var(--mut);font-size:12.5px">อยู่นอกหน้าต่างแผน 4 สัปดาห์</div>';return;}
+  var adv=adaptiveAdvice(wk);
+  host.innerHTML='<div class="card">'+adv.map(function(a,i){return '<div style="display:flex;gap:9px;padding:9px 0;'+(i?'border-top:1px solid var(--line);':'')+'font-size:12.5px;line-height:1.6"><span style="font-size:16px;flex:none">'+a.ic+'</span><span>'+a.t+'</span></div>';}).join('')+'</div>';
+}
+
+/* ---------------- LOG ---------------- */
+function todayGymType(){
+  var idx=nowIdx();var wd=wkDow(idx);
+  if(wd.wk>=1&&wd.wk<=4){var d=DETAIL[wd.wk][wd.dow];
+    if(d&&d.t==='gym'){
+      if(wd.wk<=3){return (d.title.indexOf('Upper')>=0)?'upper':'leg';}
+      return 'full';
+    }
+  }
+  return null;
+}
+var curSess=null;
+function logKey(sess,dk){return 'by:log:'+sess+':'+dk;}
+function renderSessSel(){
+  var sel=document.getElementById('sessSel');sel.innerHTML='';
+  var auto=todayGymType();
+  var order=['upper','leg','full'];
+  if(!curSess)curSess=auto||'leg';
+  order.forEach(function(k){
+    var b=document.createElement('button');b.textContent=GYM[k].label+(auto===k?' · วันนี้':'');
+    if(curSess===k)b.className='on';
+    b.onclick=function(){curSess=k;renderSessSel();renderLogBody();};
+    sel.appendChild(b);
+  });
+}
+function prevWeekSameSess(sess){
+  var best=null;
+  for(var back=1;back<=60;back++){
+    var d=new Date();d.setDate(d.getDate()-back);
+    var dk=dkOf(d);
+    var v=sGet(logKey(sess,dk),null);
+    if(v){best={dk:dk,data:v};break;}
+  }
+  return best;
+}
+function renderLogBody(){
+  var host=document.getElementById('logBody');host.innerHTML='';
+  var sess=GYM[curSess];var dk=dateKey();
+  var saved=sGet(logKey(curSess,dk),{});
+  var prev=prevWeekSameSess(curSess);
+  sess.ex.forEach(function(e,ei){
+    var arr=saved[e.id]||[{w:'',r:'',done:false},{w:'',r:'',done:false},{w:'',r:'',done:false}];
+    saved[e.id]=arr;
+    var prevLine='';
+    if(prev&&prev.data[e.id]){var ps=prev.data[e.id].filter(function(s){return s.r||s.done;});
+      if(ps.length){var w=[...new Set(ps.map(function(s){return s.w;}).filter(Boolean))].join('/')||'-';
+        prevLine='<div class="prev">📊 ครั้งก่อน ('+prev.dk+'): '+w+' × '+ps.map(function(s){return s.r||'-';}).join(',')+' — วันนี้เอาให้เกิน</div>';}}
+    var setsHTML=arr.map(function(st,i){
+      return '<div class="setrow"><span class="sn">Set '+(i+1)+'</span>'+
+        '<input inputmode="decimal" placeholder="kg" value="'+(st.w||'')+'" data-ex="'+e.id+'" data-i="'+i+'" data-f="w">'+
+        '<span style="color:var(--mut)">×</span>'+
+        '<input inputmode="numeric" placeholder="reps" value="'+(st.r||'')+'" data-ex="'+e.id+'" data-i="'+i+'" data-f="r">'+
+        '<button class="x'+(st.done?' done':'')+'" data-ex="'+e.id+'" data-i="'+i+'" data-f="done">✓</button></div>';
+    }).join('');
+    var div=document.createElement('div');div.className='exq';
+    if(ei>0){div.style.borderTop='1px solid var(--line)';div.style.paddingTop='14px';div.style.marginTop='14px';}
+    div.innerHTML='<h4>'+e.n+'</h4><div class="scheme">'+e.s+'</div>'+prevLine+setsHTML+'<div class="cue"><b>คีย์:</b> '+e.cue+'</div>';
+    host.appendChild(div);
+  });
+  sSet(logKey(curSess,dk),saved);
+  host.querySelectorAll('input,button.x').forEach(function(el){
+    var ev=(el.tagName==='INPUT')?'input':'click';
+    el.addEventListener(ev,function(){
+      var s=sGet(logKey(curSess,dk),{});var ex=el.dataset.ex,i=+el.dataset.i,f=el.dataset.f;
+      if(!s[ex])s[ex]=[{w:'',r:'',done:false},{w:'',r:'',done:false},{w:'',r:'',done:false}];
+      if(f==='done'){s[ex][i].done=!s[ex][i].done;el.classList.toggle('done',s[ex][i].done);}
+      else{s[ex][i][f]=el.value;}
+      sSet(logKey(curSess,dk),s);
+      var _a=getActual(dk);if(!_a||_a.did!=='gym')setActual(dk,{did:'gym',sess:curSess});
+      flashSave();updateKpiDone();renderAdapt();
+    });
+  });
+}
+var saveTmr;
+function flashSave(){var c=document.getElementById('logSave');c.textContent='บันทึกแล้ว ✓';clearTimeout(saveTmr);saveTmr=setTimeout(function(){c.textContent='';},1200);}
+
+/* ---------------- REPORT ---------------- */
+var reportWk=1;
+function weekDates(wk){var out=[];for(var i=0;i<7;i++){out.push(addDays(START,(wk-1)*7+i));}return out;}
+function gymLogsInWeek(wk){
+  var found=[];var dates=weekDates(wk);
+  dates.forEach(function(d,dow){
+    ['upper','leg','full'].forEach(function(sess){
+      var v=sGet(logKey(sess,dkOf(d)),null);
+      if(v){var any=Object.keys(v).some(function(k){return v[k].some(function(s){return s.done||s.r;});});
+        if(any)found.push({dow:dow,sess:sess,data:v,dk:dkOf(d)});}
+    });
+  });
+  return found;
+}
+function renderReport(){
+  document.getElementById('wkLabel').textContent='สัปดาห์ '+reportWk+' / 12';
+  var wdata=WEEKS12[reportWk-1];
+  var plan=DETAIL[reportWk]||null;
+  var bikePlanned=0,gymPlanned=0;
+  if(plan){plan.forEach(function(d){if(d.t==='gym')gymPlanned++;else if(d.t!=='off')bikePlanned++;});}
+  var rdates=weekDates(reportWk);
+  var bikeDone=0;
+  plan&&plan.forEach(function(d,dow){var dk=dkOf(rdates[dow]);var act=getActual(dk);
+    if(d.actual)bikeDone++;
+    else if(act&&(act.did==='ride'||(act.did==='plan'&&d.t!=='gym'&&d.t!=='off')))bikeDone++;});
+  var gymLogs=gymLogsInWeek(reportWk);
+  var gymDates={};gymLogs.forEach(function(g){gymDates[g.dk]=true;});
+  rdates.forEach(function(dt){var dk=dkOf(dt);var act=getActual(dk);if(act&&act.did==='gym')gymDates[dk]=true;});
+  var gymDone=Object.keys(gymDates).length;
+  var bonusGym=0;rdates.forEach(function(dt,dow){var dk=dkOf(dt);if(gymDates[dk]&&plan&&plan[dow].t==='off')bonusGym++;});
+  var totalPlanned=bikePlanned+gymPlanned;
+  var totalDone=Math.min(bikeDone,bikePlanned)+Math.min(gymDone,gymPlanned);
+  document.getElementById('kpiDone').textContent=totalDone+'/'+totalPlanned;
+  var sets=0,vol=0;
+  gymLogs.forEach(function(g){Object.keys(g.data).forEach(function(k){g.data[k].forEach(function(s){if(s.done||s.r){sets++;var w=parseFloat(s.w)||0,r=parseInt(s.r)||0;vol+=w*r;}});});});
+  var sg=document.getElementById('statGrid');
+  sg.innerHTML=
+    '<div class="stat"><b>'+bikeDone+'/'+bikePlanned+'</b><small>ไรด์เสร็จ</small></div>'+
+    '<div class="stat"><b>'+gymDone+'/'+gymPlanned+'</b><small>ยิมเสร็จ</small></div>'+
+    '<div class="stat"><b>'+sets+'</b><small>เซ็ตยิมรวม</small></div>'+
+    '<div class="stat"><b>'+(vol>=1000?(vol/1000).toFixed(1)+'t':vol)+'</b><small>ปริมาตรยก (kg·rep)</small></div>';
+  var nextKey=null;if(plan){for(var i=0;i<7;i++){var gi=(reportWk-1)*7+i;if((plan[i].key||plan[i].test)&&gi>=nowIdx()){nextKey=plan[i];nextKey._date=addDays(START,gi);break;}}}
+  var msgs=[];
+  var adher=totalPlanned?Math.round(totalDone/totalPlanned*100):0;
+  msgs.push('<b>ทำได้ '+adher+'%</b> ของแผนสัปดาห์นี้ ('+totalDone+'/'+totalPlanned+' เซสชัน).');
+  if(bonusGym>0)msgs.push('โบนัส: ไปยิม '+bonusGym+' วันนอกแผน (วันพัก) — ขยันดี แต่ดู “ปรับแผนอัตโนมัติ” ที่หน้าโค้ช เพื่อคุม recovery.');
+  if(reportWk===1){msgs.push('ไรด์ Z2 สองวันแรก power เข้าโซนดี แต่พฤหัส HR แตะเพดาน + ยาวเกินแผน — สัปดาห์ต่อไป <b>คุม HR ให้ต่ำกว่า 145</b> สถานะ Garmin จะเด้งเป็น Productive.');}
+  if(wdata.ph==='D'){msgs.push('สัปดาห์นี้เป็น <b>Deload</b> — เป้าคือให้ HRV/ความสดกลับมา อย่าอัดหนัก ปล่อยให้ร่างซ่อม.');}
+  if(nextKey){msgs.push('คีย์ถัดไป: <b>'+nextKey.title+'</b> ('+fmt(nextKey._date)+') — '+nextKey.prep+'.');}
+  msgs.push('อย่าลืม: โปรตีนหลังยิม 30–40g · Magnesium เย็น · <b>ใส่นาฬิกานอน</b> เพื่อปลด readiness.');
+  document.getElementById('coachBox').innerHTML=msgs.join('<br>');
+  var pl=document.getElementById('progList');pl.innerHTML='';
+  var thisBest={};gymLogs.forEach(function(g){Object.keys(g.data).forEach(function(k){var m=0;g.data[k].forEach(function(s){var w=parseFloat(s.w)||0;if((s.done||s.r)&&w>m)m=w;});if(m>0)thisBest[k]=Math.max(thisBest[k]||0,m);});});
+  var keys=Object.keys(thisBest);
+  if(!keys.length){pl.innerHTML='<li class="same">ยังไม่มีข้อมูลยิมสัปดาห์นี้ — บันทึกเซ็ตแรกก่อน</li>';}
+  else{
+    keys.forEach(function(k){
+      var name=k;['upper','leg','full'].some(function(ss){var f=GYM[ss].ex.find(function(e){return e.id===k;});if(f){name=f.n;return true;}return false;});
+      var prevBest=0;
+      for(var w2=reportWk-1;w2>=1;w2--){var gl=gymLogsInWeek(w2);gl.forEach(function(g){if(g.data[k]){g.data[k].forEach(function(s){var wv=parseFloat(s.w)||0;if((s.done||s.r)&&wv>prevBest)prevBest=wv;});}});if(prevBest)break;}
+      var tag=prevBest?(thisBest[k]>prevBest?'<span class="up">▲ '+thisBest[k]+' kg (จาก '+prevBest+')</span>':thisBest[k]===prevBest?'<span class="same">= '+thisBest[k]+' kg</span>':'<span class="same">'+thisBest[k]+' kg</span>'):'<span class="up">'+thisBest[k]+' kg</span>';
+      pl.innerHTML+='<li><span>'+name+'</span>'+tag+'</li>';
+    });
+  }
+}
+function updateKpiDone(){renderReport();}
+function buildReportText(){
+  var wdata=WEEKS12[reportWk-1];
+  var lines=['Beat Yesterday — รายงานสัปดาห์ '+reportWk+'/12 ('+PH[wdata.ph].n+')'];
+  var plan=DETAIL[reportWk]||[];
+  var bikeDone=plan.filter(function(d){return d.actual;}).length,bikePlan=plan.filter(function(d){return d.t!=='off'&&d.t!=='gym';}).length;
+  var gymLogs=gymLogsInWeek(reportWk);
+  lines.push('ไรด์: '+bikeDone+'/'+bikePlan+' · ยิม: '+gymLogs.length+' เซสชัน');
+  plan.forEach(function(d){if(d.actual)lines.push('  • '+d.title+': '+d.actual.s);});
+  gymLogs.forEach(function(g){
+    lines.push('ยิม '+THAI_DOW[g.dow]+' ('+GYM[g.sess].label+'):');
+    Object.keys(g.data).forEach(function(k){
+      var ps=g.data[k].filter(function(s){return s.done||s.r;});if(!ps.length)return;
+      var name=k;GYM[g.sess].ex.some(function(e){if(e.id===k){name=e.n;return true;}return false;});
+      var w=[...new Set(ps.map(function(s){return s.w;}).filter(Boolean))].join('/');
+      lines.push('  • '+name+': '+(w?w+'kg × ':'')+ps.map(function(s){return s.r||'-';}).join(','));
+    });
+  });
+  lines.push('— ส่งให้ Coach ลง Excel Weekly Log ได้เลย');
+  return lines.join('\n');
+}
+
+/* ---------------- REF ---------------- */
+function renderRef(){
+  var wb=document.getElementById('wtBody');wb.innerHTML='';
+  WT.forEach(function(r){wb.innerHTML+='<tr><td style="font-weight:700">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td style="color:var(--mut)">'+r[4]+'</td></tr>';});
+  var ml=document.getElementById('mobList');ml.innerHTML='';
+  MOB.forEach(function(m){ml.innerHTML+='<li><span style="font-weight:700">'+m[0]+'</span><span>'+m[1]+'</span></li>';});
+}
+
+/* ---------------- NAV ---------------- */
+function show(tab){
+  ['today','plan','log','ref'].forEach(function(t){
+    document.getElementById('tab-'+t).classList.toggle('hide',t!==tab);
+  });
+  document.querySelectorAll('.navitem').forEach(function(el){el.classList.toggle('active',el.dataset.tab===tab);});
+  window.scrollTo(0,0);
+  if(tab==='today')renderToday();
+  if(tab==='plan'){renderOverview();renderDetail();}
+  if(tab==='log'){renderSessSel();renderLogBody();renderReport();}
+  if(tab==='ref')renderRef();
+}
+document.querySelectorAll('.navitem').forEach(function(el){el.onclick=function(){show(el.dataset.tab);};});
+document.getElementById('wkPrev').onclick=function(){reportWk=Math.max(1,reportWk-1);renderReport();};
+document.getElementById('wkNext').onclick=function(){reportWk=Math.min(12,reportWk+1);renderReport();};
+document.getElementById('showBtn').onclick=function(){var o=document.getElementById('outBox');o.value=buildReportText();o.classList.toggle('hide');};
+document.getElementById('copyBtn').onclick=function(){
+  var txt=buildReportText();var btn=document.getElementById('copyBtn');
+  function ok(){btn.textContent='✓ คัดลอกแล้ว — วางในแชท Coach ได้เลย';setTimeout(function(){btn.textContent='📋 คัดลอกรายงาน → วางส่งให้ Coach ลง Weekly Log';},2200);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,function(){fallbackCopy(txt,ok);});}
+  else fallbackCopy(txt,ok);
+};
+function fallbackCopy(txt,cb){var o=document.getElementById('outBox');o.classList.remove('hide');o.value=txt;o.focus();o.select();try{document.execCommand('copy');}catch(e){}cb&&cb();}
+
+/* ---------------- INIT ---------------- */
+reportWk=Math.min(Math.max(wkDow(nowIdx()).wk,1),12);
+show('today');
+</script>
+</body>
+</html>
